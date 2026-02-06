@@ -1,16 +1,14 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, PerspectiveCamera, Html } from '@react-three/drei';
+import { OrbitControls, Grid, PerspectiveCamera, Html, Environment } from '@react-three/drei';
 import { SCENE_CONFIG } from '../../utils/constants';
 
 // Import 3D components
 import Lighting from './Lighting';
 import Tank from './Tank';
-import Pump from './Pump';
-import Pipe from './Pipe';
-import Valve from './Valve';
-import FlowMeter from './FlowMeter';
-import PressureTransmitter from './PressureTransmitter';
+import InletMotor from './InletMotor';
+import InletPipe from './InletPipe';
+import OutletPipeSystem from './OutletPipeSystem';
 
 /**
  * Loading Fallback Component
@@ -38,13 +36,62 @@ const LoadingFallback = () => (
 );
 
 /**
- * Ground Plane Component
+ * Ground Plane Component - Styled like the reference image
  */
 const Ground = () => (
-  <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -3, 0]} receiveShadow>
-    <planeGeometry args={[50, 50]} />
-    <meshStandardMaterial color="#e2e8f0" />
-  </mesh>
+  <group>
+    {/* Main ground */}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -3, 0]} receiveShadow>
+      <planeGeometry args={[60, 60]} />
+      <meshStandardMaterial color="#334155" metalness={0.3} roughness={0.8} />
+    </mesh>
+    
+    {/* Grid pattern on ground */}
+    <Grid
+      position={[0, -2.99, 0]}
+      args={[60, 60]}
+      cellSize={1}
+      cellThickness={0.5}
+      cellColor="#475569"
+      sectionSize={5}
+      sectionThickness={1}
+      sectionColor="#64748b"
+      fadeDistance={40}
+      fadeStrength={1}
+      followCamera={false}
+    />
+    
+    {/* Water collection area under outlets */}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[8, -2.98, 0]} receiveShadow>
+      <circleGeometry args={[4, 32]} />
+      <meshStandardMaterial 
+        color="#0c4a6e" 
+        metalness={0.5} 
+        roughness={0.3}
+        transparent
+        opacity={0.8}
+      />
+    </mesh>
+  </group>
+);
+
+/**
+ * Tank Platform Component
+ */
+const TankPlatform = ({ position = [0, -2.5, 0] }) => (
+  <group position={position}>
+    {/* Circular platform */}
+    <mesh rotation={[-Math.PI / 2, 0, 0]}>
+      <cylinderGeometry args={[2.5, 2.8, 0.3, 32]} />
+      <meshStandardMaterial color="#475569" metalness={0.4} roughness={0.6} />
+    </mesh>
+    
+    {/* Platform rim */}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.16, 0]}>
+      <torusGeometry args={[2.5, 0.08, 8, 32]} />
+      <meshStandardMaterial color="#64748b" metalness={0.6} roughness={0.4} />
+    </mesh>
+  </group>
 );
 
 /**
@@ -57,39 +104,27 @@ const SceneContent = () => {
       {/* Lighting */}
       <Lighting />
       
-      {/* Ground and Grid */}
+      {/* Sky/Environment */}
+      <color attach="background" args={['#1e3a5f']} />
+      <fog attach="fog" args={['#1e3a5f', 20, 50]} />
+      
+      {/* Ground */}
       <Ground />
-      <Grid
-        position={[0, -2.99, 0]}
-        args={[50, 50]}
-        cellSize={1}
-        cellThickness={0.5}
-        cellColor="#94a3b8"
-        sectionSize={5}
-        sectionThickness={1}
-        sectionColor="#64748b"
-        fadeDistance={30}
-        fadeStrength={1}
-        followCamera={false}
-      />
+      
+      {/* Tank Platform */}
+      <TankPlatform position={[0, -2.5, 0]} />
+      
+      {/* Inlet Motor - fills the tank (positioned to the left of tank) */}
+      <InletMotor position={[-4, -2.5, 0]} />
+      
+      {/* Inlet Pipe - connects motor to tank */}
+      <InletPipe motorPosition={[-4, -2.5, 0]} tankPosition={[0, 0, 0]} />
       
       {/* Tank - positioned at origin */}
       <Tank position={[0, 0, 0]} />
       
-      {/* Pump - positioned next to tank */}
-      <Pump position={[4, -1.5, 0]} />
-      
-      {/* Valve - on discharge line */}
-      <Valve position={[7.75, -1.5, 0]} />
-      
-      {/* Flow Meter - after valve */}
-      <FlowMeter position={[11.75, -1.5, 0]} />
-      
-      {/* Pressure Transmitter - at end of line */}
-      <PressureTransmitter position={[15, -1, 0]} />
-      
-      {/* Piping system */}
-      <Pipe showFlow={true} />
+      {/* Outlet Pipe System - main pipe with 3 sub-pipes */}
+      <OutletPipeSystem tankPosition={[0, 0, 0]} />
     </>
   );
 };
@@ -156,7 +191,6 @@ const Scene = () => {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Small delay to ensure everything is mounted
     const timer = setTimeout(() => setIsReady(true), 100);
     return () => clearTimeout(timer);
   }, []);
@@ -169,9 +203,9 @@ const Scene = () => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        background: '#f1f5f9'
+        background: '#1e3a5f'
       }}>
-        <div style={{ textAlign: 'center', color: '#666' }}>
+        <div style={{ textAlign: 'center', color: '#94a3b8' }}>
           <div style={{
             width: '48px',
             height: '48px',
@@ -198,9 +232,6 @@ const Scene = () => {
             alpha: false,
             powerPreference: 'high-performance'
           }}
-          onCreated={({ gl }) => {
-            gl.setClearColor('#f1f5f9');
-          }}
         >
           {/* Camera */}
           <PerspectiveCamera
@@ -217,20 +248,16 @@ const Scene = () => {
             enableZoom={true}
             enableRotate={true}
             minDistance={5}
-            maxDistance={50}
-            minPolarAngle={0}
+            maxDistance={40}
+            minPolarAngle={0.1}
             maxPolarAngle={Math.PI / 2.1}
-            target={[7, -1, 0]}
+            target={[3, -1, 0]}
           />
           
-          {/* Background */}
-          <color attach="background" args={['#f1f5f9']} />
-          
-          {/* Fog for depth */}
-          <fog attach="fog" args={['#f1f5f9', 30, 60]} />
-          
           {/* Scene content */}
-          <SceneContent />
+          <Suspense fallback={<LoadingFallback />}>
+            <SceneContent />
+          </Suspense>
         </Canvas>
       </SceneErrorBoundary>
     </div>

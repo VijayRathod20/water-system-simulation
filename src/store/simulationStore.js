@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { SimulationEngine } from '../simulation/SimulationEngine';
-import { SYSTEM_STATES, TANK_CONFIG, PUMP_CONFIG } from '../utils/constants';
+import { SYSTEM_STATES, TANK_CONFIG, PUMP_CONFIG, INLET_MOTOR_CONFIG, SUB_PIPES_CONFIG } from '../utils/constants';
 
 // Create simulation engine instance
 const engine = new SimulationEngine();
@@ -24,7 +24,7 @@ export const useSimulationStore = create(
       pressure: 0
     },
     
-    // Valve state
+    // Valve state (main valve)
     valve: {
       id: 'valve-1',
       position: 0,
@@ -33,6 +33,20 @@ export const useSimulationStore = create(
       isOpen: false,
       isClosed: true
     },
+    
+    // Sub-pipes state (3 outlet pipes)
+    subPipes: SUB_PIPES_CONFIG.map(pipe => ({
+      id: pipe.id,
+      name: pipe.name,
+      valvePosition: pipe.initialValvePosition,
+      isOpen: false,
+      flowRate: 0,
+      velocity: 0,
+      color: pipe.color,
+    })),
+    
+    // Flow state (main flow)
+    flowEnabled: false,
     
     // Flow meter state
     flowMeter: {
@@ -54,13 +68,38 @@ export const useSimulationStore = create(
     tank: {
       id: 'tank-1',
       level: TANK_CONFIG.INITIAL_LEVEL,
-      capacity: TANK_CONFIG.CAPACITY
+      capacity: TANK_CONFIG.CAPACITY,
+      height: TANK_CONFIG.HEIGHT,
+      radius: TANK_CONFIG.RADIUS,
+      outletHeight: TANK_CONFIG.OUTLET_HEIGHT,
     },
     
     // Bypass state
     bypass: {
       isOpen: false
     },
+    
+    // Inlet motor state (fills the tank)
+    inletMotor: {
+      id: 'inlet-motor-1',
+      isRunning: false,
+      flowRate: 0,
+      maxFlowRate: INLET_MOTOR_CONFIG.MAX_FLOW_RATE,
+      state: SYSTEM_STATES.IDLE
+    },
+    
+    // Bernoulli physics state
+    bernoulliState: {
+      exitVelocity: 0,
+      waterHeight: 0,
+      effectiveHeight: 0,
+      remainingVolume: 0,
+      estimatedDrainTime: 0,
+      totalFlowRate: 0,
+    },
+    
+    // Time tracking
+    elapsedTime: 0,
     
     // System state
     systemState: SYSTEM_STATES.IDLE,
@@ -104,13 +143,24 @@ export const useSimulationStore = create(
             isLowPressure: state.pressure.isLowPressure
           },
           tank: {
-            id: 'tank-1',
+            ...get().tank,
             level: state.tank.level,
             capacity: state.tank.capacity
           },
           bypass: {
             isOpen: state.bypass.isOpen
           },
+          inletMotor: state.inletMotor ? {
+            id: 'inlet-motor-1',
+            isRunning: state.inletMotor.isRunning,
+            flowRate: state.inletMotor.flowRate,
+            maxFlowRate: state.inletMotor.maxFlowRate,
+            state: state.inletMotor.state
+          } : get().inletMotor,
+          subPipes: state.subPipes || get().subPipes,
+          bernoulliState: state.bernoulliState || get().bernoulliState,
+          flowEnabled: state.flowEnabled ?? get().flowEnabled,
+          elapsedTime: state.elapsedTime ?? get().elapsedTime,
           systemState: state.system.state,
           animationSpeed: state.flow.animationSpeed
         });
@@ -124,6 +174,26 @@ export const useSimulationStore = create(
     stopSimulation: () => {
       engine.stopSimulation();
       set({ isSimulationRunning: false });
+    },
+    
+    // Flow controls
+    enableFlow: () => {
+      engine.enableFlow();
+      set({ flowEnabled: true });
+    },
+    
+    disableFlow: () => {
+      engine.disableFlow();
+      set({ flowEnabled: false });
+    },
+    
+    toggleFlow: () => {
+      const { flowEnabled } = get();
+      if (flowEnabled) {
+        engine.disableFlow();
+      } else {
+        engine.enableFlow();
+      }
     },
     
     // Pump controls
@@ -157,6 +227,26 @@ export const useSimulationStore = create(
       engine.closeValve();
     },
     
+    // Sub-pipe controls
+    setSubPipeValve: (pipeId, position) => {
+      engine.setSubPipeValve(pipeId, position);
+    },
+    
+    openSubPipe: (pipeId) => {
+      engine.setSubPipeValve(pipeId, 100);
+    },
+    
+    closeSubPipe: (pipeId) => {
+      engine.setSubPipeValve(pipeId, 0);
+    },
+    
+    toggleSubPipe: (pipeId) => {
+      const pipe = get().subPipes.find(p => p.id === pipeId);
+      if (pipe) {
+        engine.setSubPipeValve(pipeId, pipe.valvePosition > 0 ? 0 : 100);
+      }
+    },
+    
     // Bypass controls
     toggleBypass: () => {
       engine.toggleBypass();
@@ -171,9 +261,35 @@ export const useSimulationStore = create(
       engine.setTankLevel(level);
     },
     
+    setOutletHeight: (height) => {
+      engine.setOutletHeight(height);
+      set(state => ({
+        tank: { ...state.tank, outletHeight: height }
+      }));
+    },
+    
+    // Inlet motor controls
+    startInletMotor: () => {
+      engine.startInletMotor();
+    },
+    
+    stopInletMotor: () => {
+      engine.stopInletMotor();
+    },
+    
+    toggleInletMotor: () => {
+      const { inletMotor } = get();
+      if (inletMotor.isRunning || inletMotor.state === SYSTEM_STATES.STARTING) {
+        engine.stopInletMotor();
+      } else {
+        engine.startInletMotor();
+      }
+    },
+    
     // System controls
     resetSimulation: () => {
       engine.reset();
+      set({ elapsedTime: 0 });
     },
     
     // ============ Getters ============
@@ -184,6 +300,8 @@ export const useSimulationStore = create(
     getPressureValue: () => get().pressureTransmitter.currentPressure,
     getTankLevel: () => get().tank.level,
     getSystemState: () => get().systemState,
+    getSubPipes: () => get().subPipes,
+    getBernoulliState: () => get().bernoulliState,
     
     // Get engine reference (for advanced usage)
     getEngine: () => engine
@@ -197,6 +315,11 @@ export const selectFlowMeter = (state) => state.flowMeter;
 export const selectPressureTransmitter = (state) => state.pressureTransmitter;
 export const selectTank = (state) => state.tank;
 export const selectBypass = (state) => state.bypass;
+export const selectInletMotor = (state) => state.inletMotor;
+export const selectSubPipes = (state) => state.subPipes;
+export const selectBernoulliState = (state) => state.bernoulliState;
+export const selectFlowEnabled = (state) => state.flowEnabled;
+export const selectElapsedTime = (state) => state.elapsedTime;
 export const selectSystemState = (state) => state.systemState;
 export const selectAnimationSpeed = (state) => state.animationSpeed;
 

@@ -3,6 +3,7 @@ import PumpControls from './PumpControls';
 import ValveControls from './ValveControls';
 import MetricsDisplay from './MetricsDisplay';
 import StatusDisplay from './StatusDisplay';
+import InletMotorControls from './InletMotorControls';
 import { useSimulationStore } from '../../store/simulationStore';
 import Button from '../common/Button';
 
@@ -86,6 +87,9 @@ const ControlPanel = () => {
           <div className="flex-1 overflow-y-auto p-3 space-y-4">
             {activeTab === 'controls' && (
               <>
+                {/* Inlet Motor Controls - Fill Tank */}
+                <InletMotorControls />
+                
                 <PumpControls />
                 <ValveControls />
                 

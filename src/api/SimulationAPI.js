@@ -17,11 +17,47 @@ export const initializeAPI = () => {
   
   // Create global API object
   window.WaterSimulation = {
+    // ============ Flow Controls ============
+    
+    /**
+     * Enable water flow
+     */
+    enableFlow: () => {
+      if (!storeApi) return false;
+      storeApi.getState().enableFlow();
+      return true;
+    },
+    
+    /**
+     * Disable water flow
+     */
+    disableFlow: () => {
+      if (!storeApi) return false;
+      storeApi.getState().disableFlow();
+      return true;
+    },
+    
+    /**
+     * Toggle flow state
+     */
+    toggleFlow: () => {
+      if (!storeApi) return false;
+      storeApi.getState().toggleFlow();
+      return storeApi.getState().flowEnabled;
+    },
+    
+    /**
+     * Get flow enabled state
+     */
+    isFlowEnabled: () => {
+      if (!storeApi) return false;
+      return storeApi.getState().flowEnabled;
+    },
+    
     // ============ Pump Controls ============
     
     /**
      * Start the pump
-     * @returns {boolean} Success status
      */
     startPump: () => {
       if (!storeApi) return false;
@@ -31,7 +67,6 @@ export const initializeAPI = () => {
     
     /**
      * Stop the pump
-     * @returns {boolean} Success status
      */
     stopPump: () => {
       if (!storeApi) return false;
@@ -41,7 +76,6 @@ export const initializeAPI = () => {
     
     /**
      * Toggle pump state
-     * @returns {boolean} New running state
      */
     togglePump: () => {
       if (!storeApi) return false;
@@ -51,150 +85,85 @@ export const initializeAPI = () => {
     
     /**
      * Get pump status
-     * @returns {Object} Pump state object
      */
     getPumpStatus: () => {
       if (!storeApi) return null;
       return storeApi.getState().pump;
     },
     
-    // ============ Valve Controls ============
+    // ============ Sub-Pipe Controls ============
     
     /**
-     * Set valve position
+     * Set sub-pipe valve position
+     * @param {string} pipeId - Pipe ID (sub-pipe-1, sub-pipe-2, sub-pipe-3)
      * @param {number} position - Position 0-100%
-     * @returns {number} Actual position set
      */
-    setValvePosition: (position) => {
-      if (!storeApi) return 0;
-      const clampedPosition = Math.max(0, Math.min(100, position));
-      storeApi.getState().setValvePosition(clampedPosition);
-      return clampedPosition;
-    },
-    
-    /**
-     * Get current valve position
-     * @returns {number} Current position 0-100%
-     */
-    getValvePosition: () => {
-      if (!storeApi) return 0;
-      return storeApi.getState().valve.position;
-    },
-    
-    /**
-     * Open valve fully
-     * @returns {boolean} Success status
-     */
-    openValve: () => {
+    setSubPipeValve: (pipeId, position) => {
       if (!storeApi) return false;
-      storeApi.getState().openValve();
+      storeApi.getState().setSubPipeValve(pipeId, position);
       return true;
     },
     
     /**
-     * Close valve fully
-     * @returns {boolean} Success status
+     * Open a sub-pipe fully
      */
-    closeValve: () => {
+    openSubPipe: (pipeId) => {
       if (!storeApi) return false;
-      storeApi.getState().closeValve();
+      storeApi.getState().openSubPipe(pipeId);
       return true;
     },
     
     /**
-     * Get valve status
-     * @returns {Object} Valve state object
+     * Close a sub-pipe
      */
-    getValveStatus: () => {
-      if (!storeApi) return null;
-      return storeApi.getState().valve;
-    },
-    
-    // ============ Readings ============
-    
-    /**
-     * Get current flow value
-     * @returns {number} Flow rate in m³/h
-     */
-    getFlowValue: () => {
-      if (!storeApi) return 0;
-      return storeApi.getState().flowMeter.currentFlow;
-    },
-    
-    /**
-     * Get current pressure value
-     * @returns {number} Pressure in bar
-     */
-    getPressureValue: () => {
-      if (!storeApi) return 0;
-      return storeApi.getState().pressureTransmitter.currentPressure;
-    },
-    
-    /**
-     * Get tank level
-     * @returns {number} Tank level 0-100%
-     */
-    getTankLevel: () => {
-      if (!storeApi) return 0;
-      return storeApi.getState().tank.level;
-    },
-    
-    /**
-     * Get flow meter status
-     * @returns {Object} Flow meter state object
-     */
-    getFlowMeterStatus: () => {
-      if (!storeApi) return null;
-      return storeApi.getState().flowMeter;
-    },
-    
-    /**
-     * Get pressure transmitter status
-     * @returns {Object} Pressure transmitter state object
-     */
-    getPressureStatus: () => {
-      if (!storeApi) return null;
-      return storeApi.getState().pressureTransmitter;
-    },
-    
-    // ============ Bypass Controls ============
-    
-    /**
-     * Toggle bypass valve
-     * @returns {boolean} New bypass state
-     */
-    toggleBypass: () => {
+    closeSubPipe: (pipeId) => {
       if (!storeApi) return false;
-      storeApi.getState().toggleBypass();
-      return storeApi.getState().bypass.isOpen;
+      storeApi.getState().closeSubPipe(pipeId);
+      return true;
     },
     
     /**
-     * Set bypass state
-     * @param {boolean} open - Whether bypass should be open
-     * @returns {boolean} Actual state
+     * Toggle a sub-pipe
      */
-    setBypass: (open) => {
+    toggleSubPipe: (pipeId) => {
       if (!storeApi) return false;
-      storeApi.getState().setBypass(open);
-      return storeApi.getState().bypass.isOpen;
+      storeApi.getState().toggleSubPipe(pipeId);
+      return true;
     },
     
     /**
-     * Get bypass status
-     * @returns {boolean} Whether bypass is open
+     * Get all sub-pipes status
      */
-    getBypassStatus: () => {
+    getSubPipes: () => {
+      if (!storeApi) return [];
+      return storeApi.getState().subPipes;
+    },
+    
+    /**
+     * Open all sub-pipes
+     */
+    openAllSubPipes: () => {
       if (!storeApi) return false;
-      return storeApi.getState().bypass.isOpen;
+      const pipes = storeApi.getState().subPipes;
+      pipes.forEach(p => storeApi.getState().setSubPipeValve(p.id, 100));
+      return true;
+    },
+    
+    /**
+     * Close all sub-pipes
+     */
+    closeAllSubPipes: () => {
+      if (!storeApi) return false;
+      const pipes = storeApi.getState().subPipes;
+      pipes.forEach(p => storeApi.getState().setSubPipeValve(p.id, 0));
+      return true;
     },
     
     // ============ Tank Controls ============
     
     /**
-     * Set tank level (for testing)
+     * Set tank level
      * @param {number} level - Level 0-100%
-     * @returns {number} Actual level set
      */
     setTankLevel: (level) => {
       if (!storeApi) return 0;
@@ -203,19 +172,124 @@ export const initializeAPI = () => {
     },
     
     /**
+     * Set outlet height
+     * @param {number} height - Height in meters
+     */
+    setOutletHeight: (height) => {
+      if (!storeApi) return 0;
+      storeApi.getState().setOutletHeight(height);
+      return storeApi.getState().tank.outletHeight;
+    },
+    
+    /**
+     * Get tank level
+     */
+    getTankLevel: () => {
+      if (!storeApi) return 0;
+      return storeApi.getState().tank.level;
+    },
+    
+    /**
      * Get tank status
-     * @returns {Object} Tank state object
      */
     getTankStatus: () => {
       if (!storeApi) return null;
       return storeApi.getState().tank;
     },
     
+    // ============ Inlet Motor Controls ============
+    
+    /**
+     * Start the inlet motor (fills tank)
+     */
+    startInletMotor: () => {
+      if (!storeApi) return false;
+      storeApi.getState().startInletMotor();
+      return true;
+    },
+    
+    /**
+     * Stop the inlet motor
+     */
+    stopInletMotor: () => {
+      if (!storeApi) return false;
+      storeApi.getState().stopInletMotor();
+      return true;
+    },
+    
+    /**
+     * Toggle inlet motor state
+     */
+    toggleInletMotor: () => {
+      if (!storeApi) return false;
+      storeApi.getState().toggleInletMotor();
+      return storeApi.getState().inletMotor.isRunning;
+    },
+    
+    /**
+     * Get inlet motor status
+     */
+    getInletMotorStatus: () => {
+      if (!storeApi) return null;
+      return storeApi.getState().inletMotor;
+    },
+    
+    // ============ Bernoulli Physics ============
+    
+    /**
+     * Get Bernoulli physics state
+     */
+    getBernoulliState: () => {
+      if (!storeApi) return null;
+      return storeApi.getState().bernoulliState;
+    },
+    
+    /**
+     * Get exit velocity (Torricelli's theorem)
+     */
+    getExitVelocity: () => {
+      if (!storeApi) return 0;
+      return storeApi.getState().bernoulliState?.exitVelocity || 0;
+    },
+    
+    /**
+     * Get total flow rate
+     */
+    getTotalFlowRate: () => {
+      if (!storeApi) return 0;
+      return storeApi.getState().bernoulliState?.totalFlowRatePerHour || 0;
+    },
+    
+    // ============ Readings ============
+    
+    /**
+     * Get current flow value
+     */
+    getFlowValue: () => {
+      if (!storeApi) return 0;
+      return storeApi.getState().flowMeter.currentFlow;
+    },
+    
+    /**
+     * Get current pressure value
+     */
+    getPressureValue: () => {
+      if (!storeApi) return 0;
+      return storeApi.getState().pressureTransmitter.currentPressure;
+    },
+    
+    /**
+     * Get elapsed time
+     */
+    getElapsedTime: () => {
+      if (!storeApi) return 0;
+      return storeApi.getState().elapsedTime;
+    },
+    
     // ============ System Controls ============
     
     /**
      * Get system state
-     * @returns {string} Current system state
      */
     getSystemState: () => {
       if (!storeApi) return 'unknown';
@@ -224,7 +298,6 @@ export const initializeAPI = () => {
     
     /**
      * Reset simulation to initial state
-     * @returns {boolean} Success status
      */
     resetSimulation: () => {
       if (!storeApi) return false;
@@ -234,7 +307,6 @@ export const initializeAPI = () => {
     
     /**
      * Get full system state
-     * @returns {Object} Complete state object
      */
     getFullState: () => {
       if (!storeApi) return null;
@@ -246,6 +318,11 @@ export const initializeAPI = () => {
         pressureTransmitter: state.pressureTransmitter,
         tank: state.tank,
         bypass: state.bypass,
+        inletMotor: state.inletMotor,
+        subPipes: state.subPipes,
+        bernoulliState: state.bernoulliState,
+        flowEnabled: state.flowEnabled,
+        elapsedTime: state.elapsedTime,
         systemState: state.systemState
       };
     },
@@ -254,8 +331,6 @@ export const initializeAPI = () => {
     
     /**
      * Subscribe to state changes
-     * @param {Function} callback - Callback function receiving new state
-     * @returns {Function} Unsubscribe function
      */
     onStateChange: (callback) => {
       if (!storeApi || typeof callback !== 'function') return () => {};
@@ -268,31 +343,20 @@ export const initializeAPI = () => {
           pressureTransmitter: state.pressureTransmitter,
           tank: state.tank,
           bypass: state.bypass,
+          inletMotor: state.inletMotor,
+          subPipes: state.subPipes,
+          bernoulliState: state.bernoulliState,
+          flowEnabled: state.flowEnabled,
+          elapsedTime: state.elapsedTime,
           systemState: state.systemState
         });
       });
-    },
-    
-    /**
-     * Subscribe to specific state slice
-     * @param {string} slice - State slice name (pump, valve, flowMeter, etc.)
-     * @param {Function} callback - Callback function
-     * @returns {Function} Unsubscribe function
-     */
-    onSliceChange: (slice, callback) => {
-      if (!storeApi || typeof callback !== 'function') return () => {};
-      
-      return storeApi.subscribe(
-        (state) => state[slice],
-        (sliceState) => callback(sliceState)
-      );
     },
     
     // ============ Utility ============
     
     /**
      * Check if API is ready
-     * @returns {boolean} Ready status
      */
     isReady: () => {
       return storeApi !== null;
@@ -300,10 +364,9 @@ export const initializeAPI = () => {
     
     /**
      * Get API version
-     * @returns {string} API version
      */
     getVersion: () => {
-      return '1.0.0';
+      return '2.0.0';
     },
     
     /**
@@ -311,13 +374,22 @@ export const initializeAPI = () => {
      */
     logState: () => {
       console.log('Water Simulation State:', window.WaterSimulation.getFullState());
+    },
+    
+    /**
+     * Quick demo - start flow with all pipes open
+     */
+    demo: () => {
+      window.WaterSimulation.enableFlow();
+      window.WaterSimulation.openAllSubPipes();
+      console.log('Demo started - Flow enabled with all outlets open');
     }
   };
   
   // Log API availability
-  console.log('%c Water Simulation API Ready ', 'background: #0ea5e9; color: white; padding: 4px 8px; border-radius: 4px;');
+  console.log('%c Bernoulli Water Simulation API v2.0 ', 'background: #0ea5e9; color: white; padding: 4px 8px; border-radius: 4px;');
   console.log('Access via: window.WaterSimulation');
-  console.log('Available methods:', Object.keys(window.WaterSimulation).join(', '));
+  console.log('Quick start: WaterSimulation.demo()');
   
   return window.WaterSimulation;
 };
